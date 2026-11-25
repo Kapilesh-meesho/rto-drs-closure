@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RTO DRS Closure</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: Valmo Console shell. Navy left nav, white top bar, light-blue canvas with white islands. Single light look mirrors the product. */
+:root{
+  --nav:#031c40; --nav-active:#092d5e; --nav-text:#e6ebf2;
+  --primary:#003f98; --primary-hover:#01285e; --link:#2f6be0;
+  --canvas:#f2f5fa; --surface:#ffffff; --tile:#f2f5fa;
+  --line:#e6ebf2; --line-strong:#c3c9d4;
+  --ink:#272829; --ink-2:#5a5e66; --ink-3:#8e96a3;
+  --danger:#f44240; --danger-bg:#fff1f0; --ok:#178a5e; --ok-bg:#e8f6ef;
+  --scrim:rgba(20,24,33,.55);
+  --font:"Figtree","Mier B02",-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.4 var(--font);font-variant-numeric:tabular-nums}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:224px 1fr;grid-template-rows:60px 1fr;height:100%}
+.logo{grid-row:1;background:var(--nav);display:flex;align-items:center;gap:8px;padding-left:max(18px,env(safe-area-inset-left,0px))}
+.logo b{color:#fff;font-weight:800;letter-spacing:.5px;font-size:19px;font-style:italic}
+.logo span{color:#1cd4eb;font-weight:500;letter-spacing:1px;font-size:16px}
+.topbar{grid-row:1;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding-left:16px;padding-right:max(24px,env(safe-area-inset-right,0px))}
+.hub{display:flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:4px;padding:5px 10px;font-size:12px;background:var(--surface)}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+.search{display:flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:4px;height:36px;padding:0 12px;width:252px;color:var(--ink-2);font-size:13px}
+.avatar{width:40px;height:40px;border-radius:50%;border:2px solid var(--line-strong);background:var(--tile);display:grid;place-items:center;color:var(--ink-3)}
+
+nav.side{grid-row:2;background:var(--nav);overflow-y:auto;padding:8px 8px 24px 0;border-right:8px solid #3a4767}
+.nav-item{display:flex;align-items:center;gap:12px;width:100%;height:36px;padding:0 0 0 20px;border:0;background:none;color:var(--nav-text);font-size:13px;font-weight:500;text-align:left;position:relative}
+.nav-item:hover{background:rgba(255,255,255,.06)}
+.nav-item.active{background:var(--nav-active);color:#fff}
+.nav-item svg{flex:none}
+.nav-item .hint{position:absolute;right:10px;width:8px;height:8px;border-radius:50%;background:#1cd4eb;box-shadow:0 0 0 0 rgba(28,212,235,.7);animation:pulse 1.6s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 8px rgba(28,212,235,0)}100%{box-shadow:0 0 0 0 rgba(28,212,235,0)}}
+@media (prefers-reduced-motion:reduce){.nav-item .hint{animation:none}}
+
+main{grid-row:2;overflow-y:auto;min-width:0}
+.page-head{background:var(--surface);padding:16px 16px 0;border-bottom:1px solid var(--line)}
+.page-head h1{margin:0 0 16px;font-size:20px;font-weight:500}
+.tabs{display:flex;gap:0;overflow-x:auto}
+.tab{border:0;background:none;padding:10px 16px;font-size:14px;color:var(--ink-2);border-bottom:2px solid transparent;white-space:nowrap}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:500}
+.body{padding:12px 16px 32px;display:grid;gap:12px}
+.island{background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.island-h{padding:10px 12px;border-bottom:1px solid var(--line);font-weight:600;font-size:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+/* FE row */
+.fe-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;flex-wrap:wrap}
+.fe-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.select{position:relative;min-width:0}
+.select select{appearance:none;height:40px;width:260px;max-width:100%;border:1px solid var(--line-strong);border-radius:4px;background:var(--surface);padding:0 40px 0 15px;font-size:14px}
+.select select.placeholder{color:var(--ink-3)}
+.select svg{position:absolute;right:14px;top:12px;pointer-events:none;color:var(--ink-2)}
+.icon-btn{width:40px;height:40px;border:1px solid var(--primary);border-radius:4px;background:var(--surface);color:var(--primary);display:grid;place-items:center}
+.lost-card{border:1px solid var(--line);border-radius:6px;padding:12px 14px;min-width:300px;flex:0 1 300px}
+.lost-card .h{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:500;margin-bottom:10px}
+.lost-card .h a{color:var(--primary);font-size:12px;font-weight:500;text-decoration:none;display:flex;align-items:center;gap:4px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mini{background:var(--tile);border-radius:4px;padding:8px 10px}
+.mini small{display:block;color:var(--ink-2);font-size:12px}
+.mini strong{font-size:17px;font-weight:600}
+.mini strong.red{color:var(--danger)}
+
+/* scan bar */
+.scan-row{display:flex;gap:12px;padding:16px;flex-wrap:wrap}
+.scan-row .select select{width:240px}
+.scan-input{flex:1 1 260px;min-width:0;height:40px;border:1px solid var(--line-strong);border-radius:4px;padding:0 12px;font-size:15px}
+.scan-input::placeholder{color:var(--ink-3)}
+.btn{height:40px;border-radius:4px;padding:0 16px;font-weight:500;font-size:15px;display:inline-flex;align-items:center;gap:8px;border:1px solid transparent;white-space:nowrap}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-hover)}
+.btn-primary:disabled{background:#c3c9d4;color:#f2f5fa;cursor:not-allowed}
+.btn-ghost{background:var(--surface);border-color:var(--ink-2);color:var(--ink)}
+.scan-msg{padding:0 16px 12px;font-size:13px;margin-top:-6px}
+.scan-msg.ok{color:var(--ok)} .scan-msg.err{color:var(--danger)}
+
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 8px;text-align:center}
+.stat small{display:block;color:var(--ink-2);font-size:13px}
+.stat strong{display:block;font-size:19px;font-weight:600;margin-top:6px}
+.stat.warn strong{color:var(--danger)}
+
+/* table */
+.tbl-wrap{margin:16px;border:1px solid var(--line);border-radius:6px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:720px}
+th{background:var(--canvas);text-align:left;font-weight:500;font-size:12px;padding:16px 12px;border-right:1px solid var(--line)}
+td{padding:12px;border-top:1px solid var(--line);border-right:1px solid var(--line);font-size:13px;vertical-align:middle}
+th:last-child,td:last-child{border-right:0}
+td a{color:var(--link);text-decoration:none;cursor:pointer}
+td a:hover{text-decoration:underline}
+tr.is-lost td{background:#fffafa}
+.chip{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:var(--danger-bg);color:var(--danger);margin-left:6px}
+.act{height:32px;padding:0 12px;border-radius:4px;background:var(--surface);font-size:13px}
+.act.lost{border:1px solid var(--danger);color:var(--danger)}
+.act.undo{border:1px solid var(--ink-2);color:var(--ink)}
+.foot{display:flex;justify-content:space-between;align-items:center;padding:0 28px 18px;color:var(--ink-3);font-size:11px}
+.pager{display:flex;gap:10px;align-items:center;color:var(--primary);font-size:13px}
+.pager u{text-underline-offset:4px}
+.empty{padding:36px 16px;text-align:center;color:var(--ink-2)}
+.ready{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:16px;padding:14px 16px;border-radius:6px;background:var(--ok-bg);color:var(--ok);font-weight:500}
+.ready p{margin:0}
+.ready small{display:block;color:var(--ink-2);font-weight:400;margin-top:2px}
+.block-note{margin:0 16px 16px;font-size:12px;color:var(--ink-3)}
+
+.iframe{height:520px;display:grid;place-content:center;text-align:center}
+.iframe b{color:var(--primary);font-weight:600}
+.iframe small{color:var(--ink-2)}
+.placeholder-page{padding:80px 16px;text-align:center;color:var(--ink-3)}
+
+/* modal */
+.scrim{position:fixed;inset:0;background:var(--scrim);display:grid;place-items:center;padding:16px;z-index:20}
+.modal{background:var(--surface);border-radius:8px;width:480px;max-width:100%;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.modal-h{display:flex;justify-content:space-between;align-items:center;padding:18px 16px;border-bottom:1px solid var(--line);font-size:17px;font-weight:600}
+.modal-h button{border:0;background:none;padding:4px;color:var(--ink)}
+.modal-b{padding:20px}
+.lost-box{background:var(--tile);border-radius:6px;padding:12px 14px}
+.lost-box .t{font-size:13px;font-weight:500;margin-bottom:12px}
+.lost-box .cols{display:grid;grid-template-columns:1fr 1fr}
+.lost-box .cols div+div{border-left:1px solid var(--line-strong);padding-left:14px}
+.lost-box small{display:block;color:var(--ink-2);font-size:12px}
+.lost-box strong{font-size:17px;font-weight:600}
+.lost-box strong.red{color:var(--danger)}
+.otp-label{margin:24px 0 18px;font-size:14px}
+.otp{display:flex;gap:18px}
+.otp input{width:40px;height:36px;border:0;border-bottom:1px solid var(--line-strong);text-align:center;font-size:18px;font-weight:600;background:none;border-radius:0}
+.otp input:focus{outline:none;border-bottom:2px solid var(--primary)}
+.otp.err input{border-bottom-color:var(--danger)}
+.otp-meta{margin-top:12px;font-size:12px;color:var(--ink-2)}
+.otp-meta button{border:0;background:none;color:var(--primary);padding:0;font-weight:500}
+.otp-err{color:var(--danger);font-size:12px;margin-top:8px}
+.modal-f{display:flex;justify-content:flex-end;gap:12px;padding:12px 16px;border-top:1px solid var(--line)}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));background:#1f2a3d;color:#fff;padding:12px 18px;border-radius:6px;font-size:14px;z-index:30;display:flex;align-items:center;gap:10px;max-width:calc(100% - 32px)}
+.toast svg{color:#59d39b;flex:none}
+
+.proto{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:15;display:flex;gap:8px}
+.proto button{border:1px solid var(--line-strong);background:var(--surface);border-radius:16px;padding:6px 12px;font-size:12px;color:var(--ink-2);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+
+@media (max-width:860px){
+  .app{grid-template-columns:1fr;grid-template-rows:56px auto 1fr}
+  .logo{display:none}
+  .topbar{grid-row:1;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .search{display:none}
+  nav.side{grid-row:2;display:flex;overflow-x:auto;padding:4px 0;border-right:0;padding-left:max(8px,env(safe-area-inset-left,0px))}
+  .nav-item{width:auto;flex:none;padding:0 14px}
+  main{grid-row:3}
+  .page-head{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .body{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .lost-card{min-width:0;flex:1 1 100%}
+  .scan-row .select,.scan-row .select select,.fe-left .select,.fe-left .select select{width:100%}
+  .fe-left{flex:1 1 100%}
+  .fe-left .select{flex:1}
+  .otp{gap:10px}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="logo"><b>VALMO</b><span>CONSOLE</span></div>
+  <header class="topbar">
+    <div class="hub">AQT <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></div>
+    <div class="top-right">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8e96a3" stroke-width="1.6"><rect x="6" y="2.5" width="12" height="19" rx="2"/><path d="M10 18.5h4"/></svg>
+      <div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Scan or Search by AWB No.</div>
+      <div class="avatar"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg></div>
+    </div>
+  </header>
+  <nav class="side" id="nav" aria-label="Modules"></nav>
+  <main id="main"></main>
+</div>
+<div class="proto"><button id="reset" type="button">Restart prototype</button></div>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+
+<script>
+const NAV = [
+  ["Dashboard","#e05a5a"],["FM Dashboard","#5b8def"],["Pickup","#c98a4b"],["Inbound","#f08a3c"],["Inventory","#7aa7e8"],["Tracking","#e8584f"],["Trips","#6f9be8"],["POD","#c9b22c"],["COD","#c9b22c"],["RTO","#7aa7e8"],["Reports","#c9b22c"],["Digital Payment","#9fb4d8"],["Monitoring Reports","#d68a4b"],["LM Performance","#e05a8a"],["Billing","#c9b22c"],["Settings","#9aa3b2"],["Payments","#b07a4b"],["Service Area","#e8584f"],["Loss Management","#7aa7e8"],["Cash Pendency","#59b696"],["Pilot Rate Card","#d6b84b"],["DC Capacity","#c98a4b"],["Pilot Management","#7aa7e8"]
+];
+const FES = {
+  "utkarsh": {name:"Utkarsh Solanki", drs:"RTO-DRS-AQT-261125-014", delivered:9,
+    undel:[
+      {awb:"31948572601", attempts:1, pod:"25 Nov, 2:14 PM", reason:"Seller Unavailable"},
+      {awb:"31948572619", attempts:2, pod:"25 Nov, 3:02 PM", reason:"Seller Refused to Accept"},
+      {awb:"31948572627", attempts:1, pod:"25 Nov, 3:40 PM", reason:"Seller Address Incomplete"},
+      {awb:"31948572635", attempts:3, pod:"25 Nov, 4:05 PM", reason:"Shop Closed"}
+    ],
+    pickup:[
+      {awb:"72045118306", seller:"Shree Ganesh Textiles", pid:"PKP-88213", at:"25 Nov, 11:20 AM", qty:3},
+      {awb:"72045118314", seller:"Kavya Fashion Hub", pid:"PKP-88229", at:"25 Nov, 12:05 PM", qty:1},
+      {awb:"72045118322", seller:"Om Sai Handicrafts", pid:"PKP-88240", at:"25 Nov, 1:10 PM", qty:2}
+    ]},
+  "ravi": {name:"Ravi Kumar", drs:"RTO-DRS-AQT-261125-017", delivered:12,
+    undel:[{awb:"31948573011", attempts:1, pod:"25 Nov, 1:48 PM", reason:"Seller Unavailable"}],
+    pickup:[{awb:"72045119041", seller:"Meena Kitchenware", pid:"PKP-88301", at:"25 Nov, 10:35 AM", qty:4},{awb:"72045119059", seller:"Arihant Footwear", pid:"PKP-88317", at:"25 Nov, 11:50 AM", qty:2}]},
+  "neha": {name:"Neha Sharma", drs:"RTO-DRS-AQT-261125-021", delivered:6,
+    undel:[{awb:"31948573307", attempts:2, pod:"25 Nov, 2:55 PM", reason:"Seller Refused to Accept"},{awb:"31948573315", attempts:1, pod:"25 Nov, 3:30 PM", reason:"Shop Closed"}],
+    pickup:[{awb:"72045119504", seller:"Royal Bags & Co", pid:"PKP-88402", at:"25 Nov, 12:40 PM", qty:1}]}
+};
+let S;
+function fresh(){
+  const fes = JSON.parse(JSON.stringify(FES));
+  for (const k in fes){ for (const r of [...fes[k].undel, ...fes[k].pickup]) r.status = "pending"; }
+  return {module:"Dashboard", tab:"drs", fe:"", mode:"undel", fes, closed:{}, msg:null, autoOpened:{}};
+}
+S = fresh();
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const chev = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>';
+
+function counts(fe){
+  const u = fe.undel, p = fe.pickup;
+  const c = s => arr => arr.filter(r => r.status === s).length;
+  return {
+    undelTotal:u.length, pickupTotal:p.length,
+    undelPending:c("pending")(u), pickupPending:c("pending")(p),
+    undelLost:c("lost")(u), pickupLost:c("lost")(p),
+    undelScanned:c("scanned")(u), pickupScanned:c("scanned")(p)
+  };
+}
+
+function renderNav(){
+  $("#nav").innerHTML = NAV.map(([n,c]) => `<button class="nav-item${S.module===n?" active":""}" data-mod="${n}" type="button">
+    <svg width="18" height="18" viewBox="0 0 18 18"><rect x="1" y="1" width="16" height="16" rx="${n==="POD"||n==="COD"||n==="Reports"||n==="Billing"?8:3}" fill="${c}"/></svg>${n}
+    ${n==="RTO" && S.module!=="RTO" ? '<span class="hint" title="Start here"></span>' : ''}</button>`).join("");
+}
+
+function renderMain(){
+  const m = $("#main");
+  if (S.module !== "RTO"){
+    m.innerHTML = `<div class="page-head"><h1>${esc(S.module)}</h1></div>
+      <div class="placeholder-page">Open <b style="color:var(--primary)">RTO</b> from the left pane, then pick the <b style="color:var(--primary)">DRS Closure</b> tab.</div>`;
+    return;
+  }
+  const tabs = [["report","RTO Report"],["drs","DRS Closure"]];
+  let html = `<div class="page-head"><h1>RTO</h1><div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button class="tab${S.tab===k?" active":""}" data-tab="${k}" role="tab" type="button">${l}</button>`).join("")}</div></div>`;
+  if (S.tab === "report"){
+    m.innerHTML = html + `<div class="body"><div class="island placeholder-page">RTO Report stays as it is today. Open the <b style="color:var(--primary)">DRS Closure</b> tab.</div></div>`;
+    return;
+  }
+  const fe = S.fe ? S.fes[S.fe] : null;
+  const feOptions = Object.entries(S.fes).filter(([k]) => !S.closed[k]);
+  html += `<div class="body"><div class="island"><div class="fe-row"><div class="fe-left">
+      <div class="select"><select id="fe-select" class="${fe?"":"placeholder"}" aria-label="Select Delivery Executive">
+        <option value="">Select Delivery Executive</option>
+        ${feOptions.map(([k,f])=>`<option value="${k}"${S.fe===k?" selected":""}>${esc(f.name)}</option>`).join("")}
+      </select>${chev}</div>
+      ${fe?`<button class="icon-btn" id="resync" type="button" title="Re-sync data" aria-label="Re-sync data"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>`:""}
+    </div>`;
+  if (fe){
+    const c = counts(fe);
+    html += `<div class="lost-card"><div class="h">Lost in field<a href="#" onclick="return false">View shipments <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m9 6 6 6-6 6"/></svg></a></div>
+      <div class="pair"><div class="mini"><small>RTO Undel</small><strong class="${c.undelLost?"red":""}">${c.undelLost}</strong></div>
+      <div class="mini"><small>Pickup</small><strong class="${c.pickupLost?"red":""}">${c.pickupLost}</strong></div></div></div>`;
+  }
+  html += `</div></div>`;
+
+  if (!fe){
+    html += `<div class="island"><div class="island-h">OPEN RTO DRS Summary - FE Level report</div><div class="iframe"><b>OPEN RTO DRS Summary - FE Level report</b><small>(Click to view)</small></div></div></div>`;
+    m.innerHTML = html; return;
+  }
+  const c = counts(fe);
+  const pendingAll = c.undelPending + c.pickupPending;
+  const isUndel = S.mode === "undel";
+  html += `<div class="island"><form class="scan-row" id="scan-form" autocomplete="off">
+      <div class="select"><select id="mode-select" aria-label="Scan type">
+        <option value="undel"${isUndel?" selected":""}>Scan RTO Undel Shipments</option>
+        <option value="pickup"${!isUndel?" selected":""}>Scan Picked up Shipments</option>
+      </select>${chev}</div>
+      <input class="scan-input" id="scan-input" placeholder="Scan Waybill or Packet ID" aria-label="Waybill or Packet ID">
+      <button class="btn btn-primary" type="submit"><svg width="18" height="14" viewBox="0 0 18 14" fill="currentColor"><rect x="0" y="0" width="1.5" height="14"/><rect x="3" y="0" width="1" height="14"/><rect x="5.5" y="0" width="2" height="14"/><rect x="9" y="0" width="1" height="14"/><rect x="11.5" y="0" width="1.5" height="14"/><rect x="14.5" y="0" width="1" height="14"/><rect x="16.5" y="0" width="1.5" height="14"/></svg>Scan</button>
+    </form>${S.msg?`<div class="scan-msg ${S.msg.type}" role="status">${esc(S.msg.text)}</div>`:""}</div>
+
+    <div class="stats">
+      <div class="stat"><small>RTO Delivered</small><strong>${fe.delivered}</strong></div>
+      <div class="stat"><small>RTO Undelivered</small><strong>${c.undelTotal}</strong></div>
+      <div class="stat"><small>Picked up</small><strong>${c.pickupTotal}</strong></div>
+      <div class="stat${pendingAll?" warn":""}"><small>Inscan Pending</small><strong>${pendingAll}</strong></div>
+    </div>`;
+
+  const rows = (isUndel ? fe.undel : fe.pickup).filter(r => r.status !== "scanned");
+  const title = isUndel ? "RTO Undelivered shipments Inward Scan Pending" : "Picked up shipments Inscan Pending";
+  const pendHere = isUndel ? c.undelPending : c.pickupPending;
+  const pendOther = isUndel ? c.pickupPending : c.undelPending;
+  html += `<div class="island"><div class="island-h">${title}</div>`;
+  if (pendingAll === 0){
+    html += `<div class="ready"><p>All RTO Undel and picked up shipments are inscanned or marked lost.<small>${c.undelScanned + c.pickupScanned} inscanned · ${c.undelLost + c.pickupLost} marked lost</small></p>
+      <button class="btn btn-primary" id="close-drs" type="button">Close RTO DRS</button></div>`;
+  } else if (pendHere === 0 && pendOther > 0){
+    html += `<div class="ready" style="background:var(--tile);color:var(--ink)"><p>Nothing left to inscan here.<small>${pendOther} ${isUndel?"picked up":"RTO Undel"} shipment${pendOther>1?"s are":" is"} still pending. Switch the scan type to continue.</small></p>
+      <button class="btn btn-ghost" id="switch-mode" type="button">${isUndel?"Scan Picked up Shipments":"Scan RTO Undel Shipments"}</button></div>`;
+  }
+  if (rows.length){
+    html += `<div class="tbl-wrap"><table><thead><tr>${isUndel
+      ? "<th>Waybill Number</th><th>Attempts</th><th>POD Created On</th><th>Undelivered Reason</th><th>Actions</th>"
+      : "<th>Waybill Number</th><th>Pickup ID</th><th>Seller</th><th>Picked up On</th><th>Qty</th><th>Actions</th>"}</tr></thead><tbody>
+      ${rows.map(r => `<tr class="${r.status==="lost"?"is-lost":""}"><td><a data-fill="${r.awb}" title="Fill the scan box">${r.awb}</a>${r.status==="lost"?'<span class="chip">Lost</span>':""}</td>${isUndel
+        ? `<td>${r.attempts}</td><td>${r.pod}</td><td>${esc(r.reason)}</td>`
+        : `<td>${r.pid}</td><td>${esc(r.seller)}</td><td>${r.at}</td><td>${r.qty}</td>`}
+        <td>${r.status==="lost"?`<button class="act undo" data-undo="${r.awb}" type="button">Undo Lost</button>`:`<button class="act lost" data-lost="${r.awb}" type="button">Mark Lost</button>`}</td></tr>`).join("")}
+      </tbody></table></div>
+      <div class="foot"><span>1-${rows.length} of ${rows.length} items</span><span class="pager">‹ <u>1</u> ›</span></div>`;
+  }
+  if (pendingAll > 0) html += `<p class="block-note">Close RTO DRS unlocks once every RTO Undel and picked up shipment is inscanned or marked lost. Tip: click a waybill number to fill the scan box.</p>`;
+  html += `</div></div>`;
+  m.innerHTML = html;
+}
+
+function render(){ renderNav(); renderMain(); }
+
+function findRow(fe, awb){
+  for (const [list, kind] of [[fe.undel,"undel"],[fe.pickup,"pickup"]]){
+    const r = list.find(x => x.awb === awb); if (r) return {r, kind};
+  }
+  return null;
+}
+
+function doScan(val){
+  const fe = S.fes[S.fe]; const awb = val.trim();
+  if (!awb){ S.msg = {type:"err", text:"Scan or type a waybill or packet ID."}; return render(); }
+  const hit = findRow(fe, awb);
+  if (!hit){ S.msg = {type:"err", text:`${awb} isn't on ${fe.name}'s RTO DRS. Check the waybill and scan again.`}; return render(); }
+  if (hit.kind !== S.mode){
+    S.msg = {type:"err", text:`${awb} is a ${hit.kind==="undel"?"RTO Undel":"picked up"} shipment. Switch the scan type to "${hit.kind==="undel"?"Scan RTO Undel Shipments":"Scan Picked up Shipments"}".`}; return render();
+  }
+  if (hit.r.status === "scanned"){ S.msg = {type:"err", text:`${awb} is already inscanned.`}; return render(); }
+  hit.r.status = "scanned";
+  S.msg = {type:"ok", text:`${awb} inscanned.`};
+  render();
+  maybeAutoOpen();
+  const inp = $("#scan-input"); if (inp) inp.focus();
+}
+
+function maybeAutoOpen(){
+  const fe = S.fes[S.fe]; const c = counts(fe);
+  if (c.undelPending + c.pickupPending === 0 && !S.autoOpened[S.fe]){ S.autoOpened[S.fe] = true; openOtp(); }
+}
+
+let timer;
+function openOtp(){
+  const fe = S.fes[S.fe]; const c = counts(fe);
+  $("#modal-root").innerHTML = `<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="otp-title">
+    <div class="modal-h"><span id="otp-title">Enter OTP to close RTO DRS</span><button type="button" id="otp-x" aria-label="Close"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="modal-b">
+      <div class="lost-box"><div class="t">Lost in field</div><div class="cols">
+        <div><small>RTO Undel</small><strong class="${c.undelLost?"red":""}">${c.undelLost}</strong></div>
+        <div><small>Pickup</small><strong class="${c.pickupLost?"red":""}">${c.pickupLost}</strong></div></div></div>
+      <div class="otp-label">Enter the OTP sent to ${esc(fe.name)}</div>
+      <div class="otp" id="otp">${Array.from({length:6},(_,i)=>`<input id="otp-${i}" inputmode="numeric" maxlength="1" aria-label="OTP digit ${i+1}">`).join("")}</div>
+      <div class="otp-err" id="otp-err" hidden></div>
+      <div class="otp-meta" id="otp-meta"></div>
+    </div>
+    <div class="modal-f"><button class="btn btn-ghost" type="button" id="otp-cancel">Cancel</button><button class="btn btn-primary" type="button" id="otp-submit" disabled>Close RTO DRS</button></div>
+  </div></div>`;
+  startTimer(); $("#otp-0").focus();
+}
+function startTimer(){
+  let s = 59; clearInterval(timer);
+  const meta = () => { const el = $("#otp-meta"); if (!el) return clearInterval(timer);
+    el.innerHTML = s > 0 ? `Resend OTP in ${s} s` : `Didn't get it? <button type="button" id="resend">Resend OTP</button>`; };
+  meta(); timer = setInterval(() => { s--; meta(); if (s <= 0) clearInterval(timer); }, 1000);
+}
+function closeModal(){ clearInterval(timer); $("#modal-root").innerHTML = ""; }
+function otpValue(){ return [...document.querySelectorAll("#otp input")].map(i => i.value).join(""); }
+
+function toast(text){
+  $("#toast-root").innerHTML = `<div class="toast" role="status"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 5 5 9-10"/></svg>${esc(text)}</div>`;
+  setTimeout(() => { $("#toast-root").innerHTML = ""; }, 3500);
+}
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("button, a"); if (!t) return;
+  if (t.dataset.mod){ S.module = t.dataset.mod; if (S.module==="RTO") S.tab = "report"; return render(); }
+  if (t.dataset.tab){ S.tab = t.dataset.tab; return render(); }
+  if (t.dataset.fill){ const i = $("#scan-input"); if (i){ i.value = t.dataset.fill; i.focus(); } return; }
+  const fe = S.fe && S.fes[S.fe];
+  if (t.dataset.lost){ findRow(fe, t.dataset.lost).r.status = "lost"; S.msg = {type:"ok", text:`${t.dataset.lost} marked lost.`}; render(); return maybeAutoOpen(); }
+  if (t.dataset.undo){ findRow(fe, t.dataset.undo).r.status = "pending"; S.msg = {type:"ok", text:`${t.dataset.undo} moved back to inscan pending.`}; return render(); }
+  if (t.id === "resync"){ S.msg = {type:"ok", text:"Data re-synced with the FE app."}; return render(); }
+  if (t.id === "switch-mode"){ S.mode = S.mode === "undel" ? "pickup" : "undel"; S.msg = null; return render(); }
+  if (t.id === "close-drs") return openOtp();
+  if (t.id === "otp-x" || t.id === "otp-cancel") return closeModal();
+  if (t.id === "resend"){ startTimer(); toast(`OTP resent to ${fe.name}`); return; }
+  if (t.id === "otp-submit"){
+    if (otpValue() === "000000"){ const err = $("#otp-err"); err.textContent = "That OTP is incorrect. Check with the FE and try again."; err.hidden = false; $("#otp").classList.add("err"); return; }
+    const name = fe.name, drs = fe.drs;
+    S.closed[S.fe] = true; S.fe = ""; S.msg = null; S.mode = "undel";
+    closeModal(); render(); toast(`RTO DRS ${drs} closed for ${name}`);
+  }
+  if (t.id === "reset"){ closeModal(); S = fresh(); render(); }
+});
+document.addEventListener("click", e => { if (e.target.id === "scrim") closeModal(); });
+document.addEventListener("change", e => {
+  if (e.target.id === "fe-select"){ S.fe = e.target.value; S.mode = "undel"; S.msg = null; render(); }
+  if (e.target.id === "mode-select"){ S.mode = e.target.value; S.msg = null; render(); const i = $("#scan-input"); if (i) i.focus(); }
+});
+document.addEventListener("submit", e => { if (e.target.id === "scan-form"){ e.preventDefault(); doScan($("#scan-input").value); } });
+document.addEventListener("input", e => {
+  if (!e.target.closest("#otp")) return;
+  const inp = e.target; inp.value = inp.value.replace(/\D/g, "").slice(-1);
+  $("#otp").classList.remove("err"); $("#otp-err").hidden = true;
+  const i = +inp.id.split("-")[1];
+  if (inp.value && i < 5) $("#otp-" + (i+1)).focus();
+  $("#otp-submit").disabled = otpValue().length !== 6;
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && $("#scrim")) return closeModal();
+  if (e.target.closest && e.target.closest("#otp") && e.key === "Backspace" && !e.target.value){
+    const i = +e.target.id.split("-")[1]; if (i > 0) $("#otp-" + (i-1)).focus();
+  }
+  if (e.target.closest && e.target.closest("#otp") && e.key === "Enter" && !$("#otp-submit").disabled) $("#otp-submit").click();
+});
+document.addEventListener("paste", e => {
+  if (!e.target.closest || !e.target.closest("#otp")) return;
+  const d = (e.clipboardData.getData("text") || "").replace(/\D/g, "").slice(0, 6); if (!d) return;
+  e.preventDefault(); [...d].forEach((ch, i) => { $("#otp-" + i).value = ch; });
+  $("#otp-submit").disabled = otpValue().length !== 6;
+});
+render();
+</script>
+</body>
+</html>
